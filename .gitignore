@@ -1,2 +1,4 @@
 *.out
-output.bmp
+*.o
+*.s
+*.bmp
