@@ -2,3 +2,7 @@
 *.o
 *.s
 *.bmp
+
+*.gcda
+*.gcno
+*.gprof
