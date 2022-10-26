@@ -15,3 +15,6 @@ gcov: ADDITIONAL_FLAGS += -ftest-coverage -fprofile-arcs
 gcov: build
 	./$(FILE_NAME).out;	gcov $(FILE_NAME).out-$(FILE_NAME).gcno
 
+
+report:
+	pandoc Report.md -o Report.pdf
