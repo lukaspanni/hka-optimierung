@@ -1,9 +1,11 @@
 *.out
 *.o
 *.s
+*.asm
 *.bmp
 
 *.gcda
 *.gcno
 *.gprof
 *.gcov
+tex2pdf*
