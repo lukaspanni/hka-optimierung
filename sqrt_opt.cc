@@ -106,28 +106,44 @@ void measure_sqrt_time(void)
 
 int main(void)
 {
-  float f[4] = {
-      25.0,
-      625.0,
-      9.0,
-      144.,
-  };
-  for (int i = 0; i < 4; i++)
-  {
-    std::cout << "sqrt1(" << f[i] << ") = " << sqrt1<2>(f + i) << std::endl;
-  }
+  // alignas(128) float floats[1000 * 4];
+  // alignas(128) float roots[1000 * 4];
 
-  float r[4];
-  float r2[4];
-  sqrt2<2>(f, r);
-  sqrt3<2>(f, r2);
-  std::cout << "sqrt2(" << f[0] << " " << f[1] << " " << f[2] << " " << f[3] << ") = " << r[0] << " " << r[1] << " " << r[2] << " " << r[3] << std::endl;
-  std::cout << "sqrt3(" << f[0] << " " << f[1] << " " << f[2] << " " << f[3] << ") = " << r2[0] << " " << r2[1] << " " << r2[2] << " " << r2[3] << std::endl;
+  // for (int i = 0; i < 4 * 1000; i++)
+  // {
+  //   floats[i] = random_double();
+  // }
+
+  // for (int i = 0; i < 4 * 1000; i += 4)
+  // {
+  //   sqrt2<1>(floats + i, roots + i);
+  // }
+
+  // std::cout << floats[0] << " " << roots[0] << std::endl;
+
+  // return 0;
+  // float f[4] = {
+  //     25.0,
+  //     625.0,
+  //     142.0,
+  //     42.0,
+  // };
+  // for (int i = 0; i < 4; i++)
+  // {
+  //   std::cout << "sqrt1(" << f[i] << ") = " << sqrt1<2>(f + i) << std::endl;
+  // }
+
+  // float r[4];
+  // float r2[4];
+  // sqrt2<2>(f, r);
+  // sqrt3<2>(f, r2);
+  // std::cout << "sqrt2(" << f[0] << " " << f[1] << " " << f[2] << " " << f[3] << ") = " << r[0] << " " << r[1] << " " << r[2] << " " << r[3] << std::endl;
+  // std::cout << "sqrt3(" << f[0] << " " << f[1] << " " << f[2] << " " << f[3] << ") = " << r2[0] << " " << r2[1] << " " << r2[2] << " " << r2[3] << std::endl;
 
   // return 0;
   measure_sqrt_time<2>();
   // uncomment next lines for disassembly
-  measure_sqrt_time<3>();
-  measure_sqrt_time<4>();
+  // measure_sqrt_time<3>();
+  // measure_sqrt_time<4>();
   return 1;
 }
