@@ -12,7 +12,6 @@ float sqrt1(float *a)
   int *ai = reinterpret_cast<int *>(a);
   int *initial = reinterpret_cast<int *>(&root);
   *initial = (1 << 29) + (*ai >> 1) - (1 << 22) - 0x4C000;
-
   root = *reinterpret_cast<float *>(initial);
   // newton method
   for (size_t i = 0; i < LOOPS; i++)
@@ -26,16 +25,12 @@ float sqrt1(float *a)
 template <size_t LOOPS = 2>
 void sqrt2(float *__restrict__ a, float *__restrict__ root)
 {
-  // does not generate SIMD instructions witout compiler optimization
   int *ai = reinterpret_cast<int *>(a);
   int *initial = reinterpret_cast<int *>(root);
   initial[0] = (1 << 29) + (ai[0] >> 1) - (1 << 22) - 0x4C000;
   initial[1] = (1 << 29) + (ai[1] >> 1) - (1 << 22) - 0x4C000;
   initial[2] = (1 << 29) + (ai[2] >> 1) - (1 << 22) - 0x4C000;
   initial[3] = (1 << 29) + (ai[3] >> 1) - (1 << 22) - 0x4C000;
-
-  // *(initial + 3) = (1 << 29) + (*(ai + 3) >> 1) - (1 << 22) - 0x4C000;
-
   root = reinterpret_cast<float *>(initial);
   // newton method
   for (size_t i = 0; i < LOOPS; i++)
@@ -44,8 +39,6 @@ void sqrt2(float *__restrict__ a, float *__restrict__ root)
     root[1] = 0.5 * (root[1] + a[1] / root[1]);
     root[2] = 0.5 * (root[2] + a[2] / root[2]);
     root[3] = 0.5 * (root[3] + a[3] / root[3]);
-
-    //*(root + 3) = 0.5 * (*(root + 3) + *(a + 3) / *(root + 3));
   }
 }
 
