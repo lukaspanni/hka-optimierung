@@ -1,7 +1,7 @@
 # without type
 FILE_NAME=raytracer
 # with type
-ADDITIONAL_FILES=statistics.cc
+ADDITIONAL_FILES=statistics.cc kdtree.cc
 FLAGS= -Wall -pedantic -march=native -mfpmath=sse -mavx2 -g 
 OPTIMIZE = -O3
 ADDITIONAL_FLAGS=-D OPTIMIZED_INTERSECTS
@@ -14,6 +14,9 @@ endif
 # default simple build
 build:
 	g++ $(FLAGS) $(ADDITIONAL_FLAGS) $(OPTIMIZE) -o $(FILE_NAME).$(OUT_EXTENSION) $(FILE_NAME).cc $(ADDITIONAL_FILES)
+
+build-kd: ADDITIONAL_FLAGS += -D USE_KDTREE
+build-kd: build
 
 assembler:
 	g++ $(FLAGS) $(ADDITIONAL_FLAGS) -c $(FILE_NAME).cc $(ADDITIONAL_FILES)
