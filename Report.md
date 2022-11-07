@@ -612,3 +612,177 @@ Allerdings sind die Unterschiede vergleichsweise klein.
 Dass `sqrt1` mit der zusätzlichen inneren Schleife langsamer ist als `sqrt1`, lässt sich darauf zurückführen, dass der Compiler die verschachtelten Schleifen weniger gut optimieren kann als die einzelne Schleife.
 Erwartet wurde, dass die Vektorisierte Variante `sqrt3` schneller ist als die Variante `sqrt1`, da die SIMD-Instruktionen die Berechnung von mehreren Quadratwurzeln gleichzeitig ermöglichen.
 Jedoch ist die Quadratwurzelberechnung vergleichsweise einfach, sodass ein großer Teil der Berechnungszeit auf Speicherbefehle (Load/Store) entfällt und die SIMD-Instruktionen ihr volles Potenzial nicht ausschöpfen können. 
+
+
+## 3. Optimierung mittels k-d-Baum
+
+Bei dieser Optimierung werden die Dreiecke in einem k-d-Baum abhängig von ihrer Position gespeichert.
+So können die Shnittpunkttests auf Dreiecke reduziert werden, welche in einem Bereich liegen, durch welchen der Sehstrahl verläuft.
+Dreiecke, welche in anderen räumlichen Bereichen liegen und vom Sehstrahl nicht getroffen werden können, müssen nicht weiter überprüft werden.
+Damit lässt sich die Gesamtzahl der Shnittpunkttests reduzieren.
+
+\begin{lstlisting}[language=C++,caption={BoundingBox::split}]
+void BoundingBox::split(BoundingBox &left, BoundingBox &right)
+{
+  float lengthX = std::abs(max[0] - min[0]);
+  float lengthY = std::abs(max[1] - min[1]);
+  float lengthZ = std::abs(max[2] - min[2]);
+
+  // min/max points are always the same, only set the missing point during split
+  left.min = min;
+  right.max = max;
+
+  if (lengthX >= lengthY && lengthX >= lengthZ)
+  {
+    float newWidth = lengthX / 2;
+    left.max = Vector<float, 3>{min[0] + newWidth, max[1], max[2]};
+    right.min = Vector<float, 3>{min[0] + newWidth, min[1], min[2]};
+    return;
+  }
+
+  if (lengthY >= lengthX && lengthY >= lengthZ)
+  {
+    float newWidth = lengthY / 2;
+    left.max = Vector<float, 3>{max[0], min[1] + newWidth, max[2]};
+    right.min = Vector<float, 3>{min[0], min[1] + newWidth, min[2]};
+    return;
+  }
+
+  float newWidth = lengthZ / 2;
+  left.max = Vector<float, 3>{max[0], max[1], min[2] + newWidth};
+  right.min = Vector<float, 3>{min[0], min[1], min[2] + newWidth};
+}
+
+
+\end{lstlisting}
+
+\begin{lstlisting}[language=C++,caption={BoundingBox::contains implementierungen}]
+bool BoundingBox::contains(Vector<FLOAT, 3> v)
+{
+  return v[0] >= min[0] && v[1] >= min[1] && v[2] >= min[2] &&
+         v[0] <= max[0] && v[1] <= max[1] && v[2] <= max[2];
+}
+
+bool BoundingBox::contains(Triangle<FLOAT> *triangle)
+{
+  // one point in box
+  return contains(triangle->p1) || contains(triangle->p2) || contains(triangle->p3);
+}
+\end{lstlisting}
+
+
+\begin{lstlisting}[language=C++,caption={public KDTree::buildTree}]
+KDTree *KDTree::buildTree(std::vector<Triangle<FLOAT> *> &triangles)
+{
+  KDTree *root = new KDTree();
+  // find min and max coordinates
+  auto min = Vector<float, 3>{triangles[0]->p1[0], triangles[0]->p1[0], triangles[0]->p1[0]};
+  auto max = Vector<float, 3>{triangles[0]->p1[0], triangles[0]->p1[0], triangles[0]->p1[0]};
+
+  for (auto iterator = std::next(triangles.begin()); iterator != triangles.end(); ++iterator)
+  {
+    Triangle<float> *triangle = *iterator;
+    min[0] = std::min({min[0], triangle->p1[0], triangle->p2[0], triangle->p3[0]});
+    min[1] = std::min({min[1], triangle->p1[1], triangle->p2[1], triangle->p3[1]});
+    min[2] = std::min({min[2], triangle->p1[2], triangle->p2[2], triangle->p3[2]});
+
+    max[0] = std::max({max[0], triangle->p1[0], triangle->p2[0], triangle->p3[0]});
+    max[1] = std::max({max[1], triangle->p1[1], triangle->p2[1], triangle->p3[1]});
+    max[2] = std::max({max[2], triangle->p1[2], triangle->p2[2], triangle->p3[2]});
+  }
+
+  // create bounding box
+  root->box = BoundingBox(min, max);
+  // use private constructor to build tree
+  root->buildTree(root, triangles);
+  return root;
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=C++,caption={private KDTree::buildTree}]
+KDTree *KDTree::buildTree(KDTree *tree, std::vector<Triangle<FLOAT> *> &triangles)
+{
+
+  // stop recursion
+  if (triangles.size() <= MAX_TRIANGLES_PER_LEAF)
+  {
+   // copy triangles to this node
+    tree->triangles.insert(std::end(tree->triangles), std::begin(triangles), std::end(triangles));
+    return tree;
+  }
+
+  left = new KDTree();
+  right = new KDTree();
+  // split bounding box
+  box.split(left->box, right->box);
+
+  auto leftTriangles = std::vector<Triangle<float> *>();
+  auto rightTriangles = std::vector<Triangle<float> *>();
+
+  // assign triangles to left/right children
+  for (auto const &triangle : triangles)
+  {
+    bool leftContains = tree->left->box.contains(triangle);
+    bool rightContains = tree->right->box.contains(triangle);
+
+    if (leftContains && rightContains)
+    {
+      tree->triangles.push_back(triangle);
+      continue;
+    }
+
+    if (leftContains)
+    {
+      leftTriangles.push_back(triangle);
+    }
+
+    if (rightContains)
+    {
+      rightTriangles.push_back(triangle);
+    }
+  }
+
+  left = left->buildTree(left, leftTriangles);
+  right = right->buildTree(right, rightTriangles);
+  return tree;
+}
+\end{lstlisting}
+
+
+\begin{lstlisting}[language=C++,caption={public KDTree::hasNearestTriangle}]
+bool KDTree::hasNearestTriangle(Vector<FLOAT, 3> eye, Vector<FLOAT, 3> direction, Triangle<FLOAT> *&nearest_triangle, FLOAT &t, FLOAT &u, FLOAT &v, FLOAT minimum_t)
+{
+  // check if ray intersects bounding box
+  if (!box.intersects(eye, direction))
+  {
+    return false;
+  }
+
+  // check if ray intersects triangles in children
+  if (this->left != nullptr)
+  {
+    if (this->left->hasNearestTriangle(eye, direction, nearest_triangle, t, u, v, minimum_t))
+      minimum_t = t;
+  }
+  if (this->right != nullptr)
+  {
+    if (this->right->hasNearestTriangle(eye, direction, nearest_triangle, t, u, v, minimum_t))
+      minimum_t = t;
+  }
+
+  // check if ray intersects triangles in this node
+  for (auto triangle : this->triangles)
+  {
+    stats.no_ray_triangle_intersection_tests++;
+    if (triangle->intersects(eye, direction, t, u, v, minimum_t))
+    {
+      stats.no_ray_triangle_intersections_found++;
+      nearest_triangle = triangle;
+      minimum_t = t;
+    }
+  }
+
+  t = minimum_t;
+  return nearest_triangle != nullptr;
+}
+\end{lstlisting}
