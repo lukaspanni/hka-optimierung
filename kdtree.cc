@@ -193,7 +193,8 @@ bool KDTree::hasNearestTriangle(Vector<FLOAT, 3> eye, Vector<FLOAT, 3> direction
   for (auto triangle : this->triangles)
   {
     stats.no_ray_triangle_intersection_tests++;
-    if (triangle->intersects(eye, direction, t, u, v, minimum_t))
+    // every call to triangle-> intersects will change the value of t, u, v but not minimum_t
+    if (triangle->intersects(eye, direction, t, u, v, minimum_t) && t < minimum_t)
     {
       stats.no_ray_triangle_intersections_found++;
       nearest_triangle = triangle;
@@ -201,6 +202,7 @@ bool KDTree::hasNearestTriangle(Vector<FLOAT, 3> eye, Vector<FLOAT, 3> direction
     }
   }
 
+  // set t to the found minimum (t could have changed since the minimum was found!)
   t = minimum_t;
   return nearest_triangle != nullptr;
 }

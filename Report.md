@@ -21,8 +21,6 @@ header-includes: |
   }
 ...
 
-# Bericht Optimierung
-
 ## 1. Schnittpunkttest optimieren
 
 Sourcecode optimierte Version:
@@ -774,7 +772,8 @@ bool KDTree::hasNearestTriangle(Vector<FLOAT, 3> eye, Vector<FLOAT, 3> direction
   for (auto triangle : this->triangles)
   {
     stats.no_ray_triangle_intersection_tests++;
-    if (triangle->intersects(eye, direction, t, u, v, minimum_t))
+    // every call to triangle-> intersects will change the value of t, u, v but not minimum_t
+    if (triangle->intersects(eye, direction, t, u, v, minimum_t) && t < minimum_t)    
     {
       stats.no_ray_triangle_intersections_found++;
       nearest_triangle = triangle;
@@ -782,7 +781,55 @@ bool KDTree::hasNearestTriangle(Vector<FLOAT, 3> eye, Vector<FLOAT, 3> direction
     }
   }
 
+  // set t to the found minimum (t could have changed since the minimum was found!)
   t = minimum_t;
   return nearest_triangle != nullptr;
 }
 \end{lstlisting}
+
+### Messungen
+
+Kompiliert wurde jeweils unter Debian 10 mit GCC 8.3.0.
+Die Messungen wurden auf einem PC mit folgenden Merkmalen erstellt:
+
+    * CPU: AMD Ryzen 7 5800X @ 4.60 GHz
+    * RAM: 32GB DDR4-3200
+
+Für die Zeiten für die Variante ohne k-d-Baum wurden die Messungen, die bei der ersten Optimierungsaufgabe erstellt wurden genutzt.
+
+| Durchlauf    | Zeit ohne k-d-Baum | Zeit mit k-d-Baum |
+| ------------ | ------------------ | ----------------- |
+| 1            | 4.02156 s          | 1.00851 s         |
+| 2            | 4.07757 s          | 1.10228 s         |
+| 3            | 4.06602 s          | 1.03410 s         |
+| 4            | 4.04903 s          | 1.00635 s         |
+| 5            | 4.07341 s          | 1.01284 s         |
+| 6            | 4.0889 s           | 1.00778 s         |
+| 7            | 4.09844 s          | 0.99733 s         |
+| 8            | 4.09043 s          | 1.00634 s         |
+| 9            | 4.08588 s          | 1.00491 s         |
+| 10           | 4.0745 s           | 1.00765 s         |
+| -----------  | -----------        | -----------       |
+| Durchschnitt | 4.072574 s         | 1.018809 s        |
+
+Im Schnitt ergibt sich durch den k-d-Baum eine Verbesserung von knapp 400 %.
+Die Variante mit k-d-Baum ist also knapp 4 mal schneller als die Variante ohne k-d-Baum.
+
+Die Folgende Tabelle zeigt die Anzahl der durchgeführten Schnittpunkttests und die Anzahl der gefundenen Schnittpunkte.
+Zusätzlich zu den Varianten ohne und mit k-d-Baum werden auch die Daten des Raytracers ohne Optimierung des Schnittpunkttests angegeben.
+
+|                                 | ohne Optimierung | Ohne k-d-Baum | Mit k-d-Baum |
+| ------------------------------- | -----------------| ------------- | ------------ |
+| Anzahl Shnittpunkttests         | 519.950.720      | 519.950.720   | 139.090.305  |
+| Anzahl gefundener Schnittpunkte | 38.215           | 35.294        | 36.802       |
+
+Die Schnittpunkttests wurden durch die Optimierung mit dem k-d-Baum um etwa Faktor 3,7 reduziert.
+Das entspricht im Wesentlichen der Verbesserung der Laufzeit.
+Allerdings ist die Anzahl der gefundenen Schnittpunkte mit dem k-d-Baum etwas höher als ohne k-d-Baum.
+Dies lässt sich auf die geänderte Reihenfolge der Schnittpunkttests zurückführen.
+Bei der komplett unoptimierten Variante werden alle Schnittpunkte gefunden, da bei bereits gefundenen näheren Schnittpunkten nicht früher abgebrochen wird.
+Bei beiden optimierten Varianten kann früher abgebrochen werden.
+Allerdings hängt die Anzahl der Schnittpunkttests welche früher abgebrochen werden können von der Reihenfolge der Schnittpunkttests ab.
+Wird der nächste Schnittpunkt zum Beispiel beim ersten Test gefunden kann der Test für alle folgenden Dreiecke früher abgebrochen werden.
+Durch die räumliche Anordnung der Dreiecke in einem k-d-Baum ergibt sich eine andere Reihenfolge der Schnittpunkttests als ohne k-d-Baum.
+Deshalb liegt die Anzahl gefundener Schnittpunkte zwischen der Variante ohne k-d-Baum und der Variante ohne jegliche Optimierung, welche alle Schnittpunkte findet.
