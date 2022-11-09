@@ -40,8 +40,7 @@ void BoundingBox::split(BoundingBox &left, BoundingBox &right)
 
 bool BoundingBox::contains(Vector<FLOAT, 3> v)
 {
-  return v[0] >= min[0] && v[1] >= min[1] && v[2] >= min[2] &&
-         v[0] <= max[0] && v[1] <= max[1] && v[2] <= max[2];
+  return v[0] >= min[0] && v[1] >= min[1] && v[2] >= min[2] && v[0] <= max[0] && v[1] <= max[1] && v[2] <= max[2];
 }
 
 bool BoundingBox::contains(Triangle<FLOAT> *triangle)
@@ -116,15 +115,12 @@ KDTree *KDTree::buildTree(KDTree *tree, std::vector<Triangle<FLOAT> *> &triangle
     if (leftContains && rightContains)
     {
       tree->triangles.push_back(triangle);
-      continue;
     }
-
-    if (leftContains)
+    else if (leftContains)
     {
       leftTriangles.push_back(triangle);
     }
-
-    if (rightContains)
+    else
     {
       rightTriangles.push_back(triangle);
     }
@@ -194,7 +190,7 @@ bool KDTree::hasNearestTriangle(Vector<FLOAT, 3> eye, Vector<FLOAT, 3> direction
   {
     stats.no_ray_triangle_intersection_tests++;
     // every call to triangle-> intersects will change the value of t, u, v but not minimum_t
-    if (triangle->intersects(eye, direction, t, u, v, minimum_t) && t < minimum_t)
+    if (triangle->intersects(eye, direction, t, u, v, minimum_t))
     {
       stats.no_ray_triangle_intersections_found++;
       nearest_triangle = triangle;

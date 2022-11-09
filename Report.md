@@ -18,6 +18,7 @@ header-includes: |
     columns=fullflexible,
     frame=single,
     breaklines=true,
+    numbers=left,
     postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space},
   }
 ...
@@ -47,7 +48,7 @@ if (t < 0.0 || t > minimum_t)
   return false;
 }
 
-Vector<T, 3> intersection = origin + t \* direction;
+Vector<T, 3> intersection = origin + t * direction;
 
 Vector<T, 3> vector = cross_product(p2 - p1, intersection - p1);
 if (normal.scalar_product(vector) < 0.0)
@@ -220,39 +221,23 @@ Die Messungen wurden auf einem PC mit folgenden Merkmalen erstellt:
     * CPU: AMD Ryzen 7 5800X @ 4.60 GHz
     * RAM: 32GB DDR4-3200
 
-#### Messung ohne Optimierung
+#### Messung
 
-| Durchlauf    | Zeit        |
-| ------------ | ----------- |
-| 1            | 4.62049 s   |
-| 2            | 4.60774 s   |
-| 3            | 4.56693 s   |
-| 4            | 4.56833 s   |
-| 5            | 4.58256 s   |
-| 6            | 4.58978 s   |
-| 7            | 4.56290 s   |
-| 8            | 4.57446 s   |
-| 9            | 4.55789 s   |
-| 10           | 4.59217 s   |
-| -----------  | ----------- |
-| Durchschnitt | 4.582325 s  |
+| Durchlauf    | Zeit Optimiert | Zeit unoptimiert |
+| ------------ | -------------- | ---------------- |
+| 1            | 4.62049 s      | 4.02156 s        |
+| 2            | 4.60774 s      | 4.07757 s        |
+| 3            | 4.56693 s      | 4.06602 s        |
+| 4            | 4.56833 s      | 4.04903 s        |
+| 5            | 4.58256 s      | 4.07341 s        |
+| 6            | 4.58978 s      | 4.0889 s         |
+| 7            | 4.56290 s      | 4.09844 s        |
+| 8            | 4.57446 s      | 4.09043 s        |
+| 9            | 4.55789 s      | 4.08588 s        |
+| 10           | 4.59217 s      | 4.0745 s         |
+| -----------  | -----------    | -----------      |
+| Durchschnitt | 4.582325 s     | 4.072574 s       |
 
-#### Messung mit Optimierung
-
-| Durchlauf    | Zeit        |
-| ------------ | ----------- |
-| 1            | 4.02156 s   |
-| 2            | 4.07757 s   |
-| 3            | 4.06602 s   |
-| 4            | 4.04903 s   |
-| 5            | 4.07341 s   |
-| 6            | 4.0889 s    |
-| 7            | 4.09844 s   |
-| 8            | 4.09043 s   |
-| 9            | 4.08588 s   |
-| 10           | 4.0745 s    |
-| -----------  | ----------- |
-| Durchschnitt | 4.072574 s  |
 
 Ergibt eine Performance-Steigerung von etwa +12,5 %.
 Zurückzuführen ist diese Steigerung auf die Reduktion der Quadratwurzelberechnung.
@@ -286,64 +271,93 @@ float sqrt1(float *a)
 }
 \end{lstlisting}
 
-Der Assembler-Code für sqrt1 ohne Compiler-Optimierung:
+Der Assembler-Code für den Aufruf von `sqrt1` mit der SIMD-Optimierung durch den Compiler:
 
 \begin{lstlisting}[language={[x86masm]Assembler},caption={sqrt1 Assembler}]
-template <size_t LOOPS = 2>
-float sqrt1(float *a)
-    18ef:	55                   	push   %rbp
-    18f0:	48 89 e5             	mov    %rsp,%rbp
-    18f3:	48 89 7d d8          	mov    %rdi,-0x28(%rbp)
-{
-  float root;
-
-  int *ai = reinterpret_cast<int *>(a);
-    18f7:	48 8b 45 d8          	mov    -0x28(%rbp),%rax
-    18fb:	48 89 45 f0          	mov    %rax,-0x10(%rbp)
-  int *initial = reinterpret_cast<int *>(&root);
-    18ff:	48 8d 45 e4          	lea    -0x1c(%rbp),%rax
-    1903:	48 89 45 e8          	mov    %rax,-0x18(%rbp)
+       start = steady_clock::now();
+    18bf:	e8 4c f8 ff ff       	callq  1110 <_ZNSt6chrono3_V212steady_clock3nowEv@plt>
+    18c4:	b9 e8 03 00 00       	mov    $0x3e8,%ecx
+    18c9:	c5 f8 28 25 3f 08 00 	vmovaps 0x83f(%rip),%xmm4        # 2110 <_IO_stdin_used+0x110>
+    18d0:	00 
+    18d1:	c5 f8 28 1d 47 08 00 	vmovaps 0x847(%rip),%xmm3        # 2120 <_IO_stdin_used+0x120>
+    18d8:	00 
+    18d9:	49 89 c7             	mov    %rax,%r15
+    18dc:	48 89 44 24 60       	mov    %rax,0x60(%rsp)
+    18e1:	66 66 2e 0f 1f 84 00 	data16 nopw %cs:0x0(%rax,%rax,1)
+    18e8:	00 00 00 00 
+    18ec:	0f 1f 40 00          	nopl   0x0(%rax)
+    18f0:	4c 89 e2             	mov    %r12,%rdx
+    18f3:	4c 89 e8             	mov    %r13,%rax
   *initial = (1 << 29) + (*ai >> 1) - (1 << 22) - 0x4C000;
-    1907:	48 8b 45 f0          	mov    -0x10(%rbp),%rax
-    190b:	8b 00                	mov    (%rax),%eax
-    190d:	d1 f8                	sar    %eax
-    190f:	8d 90 00 40 bb 1f    	lea    0x1fbb4000(%rax),%edx
-    1915:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
-    1919:	89 10                	mov    %edx,(%rax)
-  root = *reinterpret_cast<float *>(initial);
-    191b:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
-    191f:	c5 fa 10 00          	vmovss (%rax),%xmm0
-    1923:	c5 fa 11 45 e4       	vmovss %xmm0,-0x1c(%rbp)
-  // newton method
-  for (size_t i = 0; i < LOOPS; i++)
-    1928:	48 c7 45 f8 00 00 00 	movq   $0x0,-0x8(%rbp)
-    192f:	00 
-    1930:	48 83 7d f8 01       	cmpq   $0x1,-0x8(%rbp)
-    1935:	77 31                	ja     1968 <_Z5sqrt1ILm2EEfPf+0x79>
-  {
+    18f6:	c5 f8 28 32          	vmovaps (%rdx),%xmm6
+    18fa:	c5 f8 28 42 20       	vmovaps 0x20(%rdx),%xmm0
+    18ff:	48 83 c0 40          	add    $0x40,%rax
+    1903:	48 83 c2 40          	add    $0x40,%rdx
+    1907:	c5 c8 c6 52 d0 88    	vshufps $0x88,-0x30(%rdx),%xmm6,%xmm2
+    190d:	c5 f8 c6 4a f0 88    	vshufps $0x88,-0x10(%rdx),%xmm0,%xmm1
+    1913:	c5 c8 c6 72 d0 dd    	vshufps $0xdd,-0x30(%rdx),%xmm6,%xmm6
+    1919:	c5 f8 c6 42 f0 dd    	vshufps $0xdd,-0x10(%rdx),%xmm0,%xmm0
+    191f:	c5 e8 c6 e9 88       	vshufps $0x88,%xmm1,%xmm2,%xmm5
+    1924:	c5 e8 c6 c9 dd       	vshufps $0xdd,%xmm1,%xmm2,%xmm1
+    1929:	c5 c8 c6 d0 88       	vshufps $0x88,%xmm0,%xmm6,%xmm2
+    192e:	c5 c8 c6 c0 dd       	vshufps $0xdd,%xmm0,%xmm6,%xmm0
+    1933:	c5 c9 72 e5 01       	vpsrad $0x1,%xmm5,%xmm6
+    1938:	c5 c9 fe fc          	vpaddd %xmm4,%xmm6,%xmm7
     root = 0.5 * (root + *a / root);
-    1937:	48 8b 45 d8          	mov    -0x28(%rbp),%rax
-    193b:	c5 fa 10 00          	vmovss (%rax),%xmm0
-    193f:	c5 fa 10 4d e4       	vmovss -0x1c(%rbp),%xmm1
-    1944:	c5 fa 5e c1          	vdivss %xmm1,%xmm0,%xmm0
-    1948:	c5 fa 10 4d e4       	vmovss -0x1c(%rbp),%xmm1
-    194d:	c5 fa 58 c1          	vaddss %xmm1,%xmm0,%xmm0
-    1951:	c5 fa 10 0d 0f 38 00 	vmovss 0x380f(%rip),%xmm1        # 5168 <_ZStL19piecewise_construct+0x158>
-    1958:	00 
-    1959:	c5 fa 59 c1          	vmulss %xmm1,%xmm0,%xmm0
-    195d:	c5 fa 11 45 e4       	vmovss %xmm0,-0x1c(%rbp)
-  for (size_t i = 0; i < LOOPS; i++)
-    1962:	48 ff 45 f8          	incq   -0x8(%rbp)
-    1966:	eb c8                	jmp    1930 <_Z5sqrt1ILm2EEfPf+0x41>
-  }
-
-  return root;
-    1968:	c5 fa 10 45 e4       	vmovss -0x1c(%rbp),%xmm0
-}
+    193c:	c5 d0 5e f7          	vdivps %xmm7,%xmm5,%xmm6
+    1940:	c5 c8 58 f7          	vaddps %xmm7,%xmm6,%xmm6
+    1944:	c5 c8 59 f3          	vmulps %xmm3,%xmm6,%xmm6
+    1948:	c5 d0 5e ee          	vdivps %xmm6,%xmm5,%xmm5
+    194c:	c5 d0 58 ee          	vaddps %xmm6,%xmm5,%xmm5
+  *initial = (1 << 29) + (*ai >> 1) - (1 << 22) - 0x4C000;
+    1950:	c5 c9 72 e2 01       	vpsrad $0x1,%xmm2,%xmm6
+    1955:	c5 c9 fe fc          	vpaddd %xmm4,%xmm6,%xmm7
+    root = 0.5 * (root + *a / root);
+    1959:	c5 e8 5e f7          	vdivps %xmm7,%xmm2,%xmm6
+    195d:	c5 d0 59 eb          	vmulps %xmm3,%xmm5,%xmm5
+    1961:	c5 c8 58 f7          	vaddps %xmm7,%xmm6,%xmm6
+    1965:	c5 c8 59 f3          	vmulps %xmm3,%xmm6,%xmm6
+    1969:	c5 e8 5e d6          	vdivps %xmm6,%xmm2,%xmm2
+    196d:	c5 e8 58 d6          	vaddps %xmm6,%xmm2,%xmm2
+  *initial = (1 << 29) + (*ai >> 1) - (1 << 22) - 0x4C000;
+    1971:	c5 c9 72 e1 01       	vpsrad $0x1,%xmm1,%xmm6
+    1976:	c5 c9 fe fc          	vpaddd %xmm4,%xmm6,%xmm7
+    root = 0.5 * (root + *a / root);
+    197a:	c5 f0 5e f7          	vdivps %xmm7,%xmm1,%xmm6
+    197e:	c5 e8 59 d3          	vmulps %xmm3,%xmm2,%xmm2
+    1982:	c5 c8 58 f7          	vaddps %xmm7,%xmm6,%xmm6
+    1986:	c5 c8 59 f3          	vmulps %xmm3,%xmm6,%xmm6
+    198a:	c5 f0 5e ce          	vdivps %xmm6,%xmm1,%xmm1
+    198e:	c5 f0 58 ce          	vaddps %xmm6,%xmm1,%xmm1
+  *initial = (1 << 29) + (*ai >> 1) - (1 << 22) - 0x4C000;
+    1992:	c5 c9 72 e0 01       	vpsrad $0x1,%xmm0,%xmm6
+    1997:	c5 c9 fe fc          	vpaddd %xmm4,%xmm6,%xmm7
+    root = 0.5 * (root + *a / root);
+    199b:	c5 f8 5e f7          	vdivps %xmm7,%xmm0,%xmm6
+    199f:	c5 f0 59 cb          	vmulps %xmm3,%xmm1,%xmm1
+    19a3:	c5 c8 58 f7          	vaddps %xmm7,%xmm6,%xmm6
+    19a7:	c5 c8 59 f3          	vmulps %xmm3,%xmm6,%xmm6
+    19ab:	c5 f8 5e c6          	vdivps %xmm6,%xmm0,%xmm0
+    19af:	c5 f8 58 c6          	vaddps %xmm6,%xmm0,%xmm0
+        roots[i + k] = sqrt1<LOOPS>(floats + i + k);
+    19b3:	c5 d0 14 f1          	vunpcklps %xmm1,%xmm5,%xmm6
+    19b7:	c5 d0 15 c9          	vunpckhps %xmm1,%xmm5,%xmm1
+    19bb:	c5 f8 59 c3          	vmulps %xmm3,%xmm0,%xmm0
+    19bf:	c5 e8 14 e8          	vunpcklps %xmm0,%xmm2,%xmm5
+    19c3:	c5 e8 15 c0          	vunpckhps %xmm0,%xmm2,%xmm0
+    19c7:	c5 c8 14 d5          	vunpcklps %xmm5,%xmm6,%xmm2
+    19cb:	c5 c8 15 f5          	vunpckhps %xmm5,%xmm6,%xmm6
+    19cf:	c5 f8 29 50 c0       	vmovaps %xmm2,-0x40(%rax)
+    19d4:	c5 f0 14 d0          	vunpcklps %xmm0,%xmm1,%xmm2
+    19d8:	c5 f0 15 c8          	vunpckhps %xmm0,%xmm1,%xmm1
+    19dc:	c5 f8 29 70 d0       	vmovaps %xmm6,-0x30(%rax)
+    19e1:	c5 f8 29 50 e0       	vmovaps %xmm2,-0x20(%rax)
+    19e6:	c5 f8 29 48 f0       	vmovaps %xmm1,-0x10(%rax)
+    19eb:	49 39 c6             	cmp    %rax,%r14
 \end{lstlisting}
 
 Die zweite Variante berechnet vier Wurzeln gleichzeitig.
-Der Compiler erzeugt dazu automatisch die Packed-SIMD Instruktionen.
+Der Compiler erzeugt dazu auch hier automatisch die Packed-SIMD Instruktionen.
 
 \begin{lstlisting}[language=C++,caption={sqrt2}]
 template <size_t LOOPS = 2>
@@ -658,8 +672,8 @@ void BoundingBox::split(BoundingBox &left, BoundingBox &right)
 \begin{lstlisting}[language=C++,caption={BoundingBox::contains implementierungen}]
 bool BoundingBox::contains(Vector<FLOAT, 3> v)
 {
-  return v[0] >= min[0] && v[1] >= min[1] && v[2] >= min[2] &&
-         v[0] <= max[0] && v[1] <= max[1] && v[2] <= max[2];
+  return v[0] >= min[0] && v[1] >= min[1] && v[2] >= min[2] 
+      && v[0] <= max[0] && v[1] <= max[1] && v[2] <= max[2];
 }
 
 bool BoundingBox::contains(Triangle<FLOAT> *triangle)
@@ -727,15 +741,10 @@ KDTree *KDTree::buildTree(KDTree *tree, std::vector<Triangle<FLOAT> *> &triangle
     if (leftContains && rightContains)
     {
       tree->triangles.push_back(triangle);
-      continue;
-    }
-
-    if (leftContains)
+    }else if (leftContains)
     {
       leftTriangles.push_back(triangle);
-    }
-
-    if (rightContains)
+    } else 
     {
       rightTriangles.push_back(triangle);
     }
@@ -774,7 +783,7 @@ bool KDTree::hasNearestTriangle(Vector<FLOAT, 3> eye, Vector<FLOAT, 3> direction
   {
     stats.no_ray_triangle_intersection_tests++;
     // every call to triangle-> intersects will change the value of t, u, v but not minimum_t
-    if (triangle->intersects(eye, direction, t, u, v, minimum_t) && t < minimum_t)    
+    if (triangle->intersects(eye, direction, t, u, v, minimum_t))    
     {
       stats.no_ray_triangle_intersections_found++;
       nearest_triangle = triangle;
@@ -821,7 +830,7 @@ Zusätzlich zu den Varianten ohne und mit k-d-Baum werden auch die Daten des Ray
 
 |                                 | ohne Optimierung | Ohne k-d-Baum | Mit k-d-Baum |
 | ------------------------------- | -----------------| ------------- | ------------ |
-| Anzahl Shnittpunkttests         | 519.950.720      | 519.950.720   | 139.090.305  |
+| Anzahl Schnittpunkttests         | 519.950.720      | 519.950.720   | 139.090.305  |
 | Anzahl gefundener Schnittpunkte | 38.215           | 35.294        | 36.802       |
 
 Die Schnittpunkttests wurden durch die Optimierung mit dem k-d-Baum um etwa Faktor 3,7 reduziert.
